@@ -12,9 +12,11 @@ import {
   Check,
   CircleHelp,
   Code2,
+  Moon,
   RotateCcw,
   Play,
   Pause,
+  Sun,
   Terminal,
   Variable,
   Zap,
@@ -236,6 +238,15 @@ function getStepExplanation(
 }
 
 function Home() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const themeOverride = new URLSearchParams(window.location.search).get('theme');
+    if (themeOverride === 'light' || themeOverride === 'dark') return themeOverride;
+    try {
+      return localStorage.getItem('python-visualizer-theme') === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
   const [source, setSource] = useState(EXAMPLE_CODE);
   const [runState, setRunState] = useState<RunState>({
     status: 'idle',
@@ -259,6 +270,16 @@ function Home() {
     runState.cursor,
     sourceLines,
   );
+  const changedVariableNames = new Set(stepExplanation.changes.map(({ name }) => name));
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark-mode', theme === 'dark');
+    try {
+      localStorage.setItem('python-visualizer-theme', theme);
+    } catch {
+      // The visualizer still works when browser storage is unavailable.
+    }
+  }, [theme]);
 
   const runCode = useCallback(async () => {
     setIsPlaying(false);
@@ -369,6 +390,17 @@ function Home() {
           <span className="local-dot" />
           Runs privately in your browser
         </div>
+        <button
+          className="theme-toggle"
+          type="button"
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-pressed={theme === 'dark'}
+          data-testid="button-theme-toggle"
+          onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+        </button>
       </header>
 
       <section className="welcome" data-testid="section-introduction">
@@ -404,6 +436,7 @@ function Home() {
             <div className="line-gutter" ref={gutterRef} aria-hidden="true" data-testid="editor-line-numbers">
               {sourceLines.map((_, index) => (
                 <div className={`line-number${currentFrame?.line === index + 1 ? ' active' : ''}`} key={index}>
+                  {currentFrame?.line === index + 1 && <ArrowRight className="line-pointer" size={13} aria-hidden="true" />}
                   {index + 1}
                 </div>
               ))}
@@ -449,6 +482,92 @@ function Home() {
         </section>
 
         <div className="right-column">
+          <section className="panel algorithm-guide" aria-label="Plain-language step explanation">
+            <div className="panel-head">
+              <div>
+                <div className="panel-title"><BookOpen size={15} /> What’s happening?</div>
+                {currentFrame && (
+                  <div className="guide-location" data-testid="text-guided-line">
+                    <ArrowLeft size={12} /> Following line {currentFrame.line}
+                  </div>
+                )}
+              </div>
+              <span className="concept-pill" data-testid="text-step-concept">{stepExplanation.concept}</span>
+            </div>
+            <div className="guide-body" data-testid="text-step-explanation">
+              <p>{stepExplanation.text}</p>
+              {stepExplanation.changes.length > 0 && (
+                <div className="step-changes" data-testid="list-step-changes">
+                  <div className="change-heading">
+                    <span className="change-label">Variable changes</span>
+                    <span className="change-subtitle">previous snapshot → current</span>
+                  </div>
+                  {stepExplanation.changes.slice(0, 2).map((change) => (
+                    <div className="change-card" key={`${runState.cursor}-${change.name}`} data-testid={`change-variable-${change.name}`}>
+                      <div className="change-card-heading">
+                        <code>{change.name}</code>
+                        <span>{change.before === undefined ? 'created' : 'updated'}</span>
+                      </div>
+                      <div className="change-value-flow">
+                        <span className="change-value change-value-before">{change.before ?? '—'}</span>
+                        <ArrowRight size={17} aria-hidden="true" />
+                        <strong className="change-value change-value-after">{change.after ?? '—'}</strong>
+                      </div>
+                    </div>
+                  ))}
+                  {stepExplanation.changes.length > 2 && (
+                    <span className="change-more">and {stepExplanation.changes.length - 2} more</span>
+                  )}
+                </div>
+              )}
+              {stepExplanation.visits > 1 && (
+                <div className="repeat-hint" data-testid="text-line-repeat">
+                  This line has been reached <strong>{stepExplanation.visits} times</strong> so far. Repeated steps are a clue that a loop is working.
+                </div>
+              )}
+              {stepExplanation.changes.length > 0 && (
+                <span className="guide-note">These values changed between snapshots, after the previous highlighted line ran.</span>
+              )}
+            </div>
+          </section>
+
+          <div className="inspector-grid">
+            <section className="panel inspector-panel" aria-label="Local variables">
+              <div className="panel-head">
+                <div className="panel-title"><Variable size={15} /> Local variables</div>
+                <span className="trace-head-right" data-testid="text-variable-count">{variables.length}</span>
+              </div>
+              <div className="inspector-body" data-testid="list-local-variables">
+                {variables.length ? (
+                  <div className="variable-list">
+                    {variables.map((item) => (
+                      <div className={`variable-row${changedVariableNames.has(item.name) ? ' recently-changed' : ''}`} key={item.name} data-testid={`row-variable-${item.name}`}>
+                        <span className="variable-name">{item.name}</span>
+                        <span className="variable-value">{item.value}</span>
+                        {changedVariableNames.has(item.name) && <span className="changed-badge">changed</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-hint" data-testid="empty-variables">
+                    {currentFrame ? 'No local values on this line.' : 'Variables will appear as your code runs.'}
+                  </div>
+                )}
+              </div>
+            </section>
+            <section className="panel inspector-panel" aria-label="Program output">
+              <div className="panel-head">
+                <div className="panel-title"><Terminal size={15} /> Program output</div>
+                <span className="trace-head-right">stdout</span>
+              </div>
+              <div className="inspector-body">
+                <div className={`output-box${!output ? ' output-empty' : ''}`} data-testid="text-program-output">
+                  {output || 'Printed text will appear here.'}
+                </div>
+              </div>
+            </section>
+          </div>
+
           <section className="panel trace-panel" aria-label="Execution timeline">
             <div className="panel-head">
               <div className="panel-title"><Activity size={15} /> Execution trace</div>
@@ -512,7 +631,9 @@ function Home() {
                   data-testid={`button-trace-step-${index}`}
                   aria-label={`Go to step ${index + 1}, line ${frame.line}`}
                 >
-                  <span className="trace-index">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="trace-index">
+                    {index === runState.cursor ? <ArrowLeft size={14} aria-hidden="true" /> : String(index + 1).padStart(2, '0')}
+                  </span>
                   <span className="trace-line">line {frame.line}</span>
                   <span className="trace-kind">{frame.kind === 'complete' ? 'finished execution' : sourceLines[frame.line - 1]?.trim() || 'blank line'}</span>
                 </button>
@@ -523,74 +644,6 @@ function Home() {
               <span>sys.settrace</span>
             </div>
           </section>
-
-          <section className="panel algorithm-guide" aria-label="Plain-language step explanation">
-            <div className="panel-head">
-              <div className="panel-title"><BookOpen size={15} /> What’s happening?</div>
-              <span className="concept-pill" data-testid="text-step-concept">{stepExplanation.concept}</span>
-            </div>
-            <div className="guide-body" data-testid="text-step-explanation">
-              <p>{stepExplanation.text}</p>
-              {stepExplanation.changes.length > 0 && (
-                <div className="step-changes" data-testid="list-step-changes">
-                  <span className="change-label">Changed since the last snapshot</span>
-                  {stepExplanation.changes.slice(0, 2).map((change) => (
-                    <div className="change-row" key={change.name} data-testid={`change-variable-${change.name}`}>
-                      <code>{change.name}</code>
-                      <span>{change.before ?? 'new'}</span>
-                      <ArrowRight size={12} />
-                      <strong>{change.after}</strong>
-                    </div>
-                  ))}
-                  {stepExplanation.changes.length > 2 && (
-                    <span className="change-more">and {stepExplanation.changes.length - 2} more</span>
-                  )}
-                </div>
-              )}
-              {stepExplanation.visits > 1 && (
-                <div className="repeat-hint" data-testid="text-line-repeat">
-                  This line has been reached {stepExplanation.visits} times so far. Repeated steps are a clue that a loop is working.
-                </div>
-              )}
-              <span className="guide-note">Values update between snapshots, so changes appear after the line that made them.</span>
-            </div>
-          </section>
-
-          <div className="inspector-grid">
-            <section className="panel inspector-panel" aria-label="Local variables">
-              <div className="panel-head">
-                <div className="panel-title"><Variable size={15} /> Local variables</div>
-                <span className="trace-head-right" data-testid="text-variable-count">{variables.length}</span>
-              </div>
-              <div className="inspector-body" data-testid="list-local-variables">
-                {variables.length ? (
-                  <div className="variable-list">
-                    {variables.map((item) => (
-                      <div className="variable-row" key={item.name} data-testid={`row-variable-${item.name}`}>
-                        <span className="variable-name">{item.name}</span>
-                        <span className="variable-value">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-hint" data-testid="empty-variables">
-                    {currentFrame ? 'No local values on this line.' : 'Variables will appear as your code runs.'}
-                  </div>
-                )}
-              </div>
-            </section>
-            <section className="panel inspector-panel" aria-label="Program output">
-              <div className="panel-head">
-                <div className="panel-title"><Terminal size={15} /> Program output</div>
-                <span className="trace-head-right">stdout</span>
-              </div>
-              <div className="inspector-body">
-                <div className={`output-box${!output ? ' output-empty' : ''}`} data-testid="text-program-output">
-                  {output || 'Printed text will appear here.'}
-                </div>
-              </div>
-            </section>
-          </div>
         </div>
       </div>
       <p className="footer-note" data-testid="text-privacy-note">
