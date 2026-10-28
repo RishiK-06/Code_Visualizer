@@ -1,0 +1,50 @@
+# Read the loop while it runs.
+
+Python can feel abstract when a value changes somewhere inside a loop and you
+only see the final answer. This little workbench lets you pause between lines
+and look at what the program knew at each point.
+
+## Start with a small example
+
+The editor opens with a short loop that adds three scores. Press **Run code**.
+The first run downloads the Python runtime into your browser, so give it a
+moment. After that, the trace is ready to explore.
+
+## Follow one step at a time
+
+Use the left and right arrows to move through the trace, or select a line in the
+timeline. The arrow beside the code points to the current line. The note above
+the timeline describes that line in everyday language.
+
+When a value changes, compare the before and after cards. The variable panel
+keeps the current local values in view; the output panel shows what the program
+has printed so far. Repeated appearances of a line usually mean a loop has come
+around again.
+
+## Try changing the example
+
+Replace a score, add another item, or change the print statement. Run it again
+and step through the new trace. **Reset example** brings back the original
+snippet.
+
+```python
+prices = [3, 5, 2]
+total = 0
+
+for price in prices:
+    total += price
+    print(price, total)
+```
+
+## What runs where
+
+> **Your snippet stays in this tab.**
+>
+> Python runs here in your browser through Pyodide; the snippet is not sent to
+> this app's server. On the first run, your browser downloads the Python
+> runtime from jsDelivr. You will need an internet connection for that
+> download.
+
+This is a small tracing tool, not a full Python IDE. It is most useful with
+short examples that finish quickly. Very long-running code can make a browser
+tab unresponsive.
