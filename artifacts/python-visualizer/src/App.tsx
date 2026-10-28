@@ -8,6 +8,7 @@ import {
   Activity,
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   Check,
   CircleHelp,
   Code2,
@@ -46,6 +47,17 @@ type RunState = {
   frames: TraceFrame[];
   cursor: number;
   error: string | null;
+};
+type VariableChange = {
+  name: string;
+  before?: string;
+  after?: string;
+};
+type StepExplanation = {
+  concept: string;
+  text: string;
+  changes: VariableChange[];
+  visits: number;
 };
 type PyodideRuntime = {
   runPythonAsync: (code: string) => Promise<unknown>;
@@ -140,6 +152,89 @@ _trace_frames.append({
 json.dumps({"frames": _trace_frames, "error": _trace_error, "stdout": _trace_stdout.getvalue()})
 `;
 
+function explainLine(line: string) {
+  const code = line.trim();
+
+  if (!code || code.startsWith('#')) {
+    return { concept: 'NOTE', text: 'Comments are notes for people. Python skips them when it runs your code.' };
+  }
+  if (/^(async\s+)?for\b.*:\s*$/.test(code)) {
+    return { concept: 'LOOP', text: 'Start a loop: take items one at a time and run the indented lines for each item.' };
+  }
+  if (/^while\b.*:\s*$/.test(code)) {
+    return { concept: 'LOOP', text: 'Repeat the indented lines while this condition stays true.' };
+  }
+  if (/^(if|elif)\b/.test(code)) {
+    return { concept: 'DECISION', text: 'Check a condition. Python follows the indented path only when the condition is true.' };
+  }
+  if (/^else\s*:/.test(code)) {
+    return { concept: 'ALTERNATIVE', text: 'This is the alternative path, used when the earlier condition was false.' };
+  }
+  const functionMatch = code.match(/^(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(/);
+  if (functionMatch) {
+    return { concept: 'FUNCTION', text: `Define ${functionMatch[1]}, a reusable block that runs when it is called.` };
+  }
+  if (/^return\b/.test(code)) {
+    return { concept: 'RETURN', text: 'Send a result back to the code that called this function.' };
+  }
+  if (/\bprint\s*\(/.test(code)) {
+    return { concept: 'OUTPUT', text: 'Write a value to the program output. The variables show what that value uses.' };
+  }
+  if (/^(import|from)\b/.test(code)) {
+    return { concept: 'IMPORT', text: 'Bring in code from a Python module so this program can use it.' };
+  }
+  const assignment = code.match(/^([A-Za-z_]\w*)\s*(\/\/=|\+=|-=|\*=|\/=|%=|=(?!=))/);
+  if (assignment) {
+    if (assignment[2] !== '=') {
+      return { concept: 'UPDATE', text: `Update ${assignment[1]} using its current value and the value on the right.` };
+    }
+    return { concept: 'ASSIGN', text: `Store a value in ${assignment[1]} so later lines can use it.` };
+  }
+  return { concept: 'STEP', text: 'Run this instruction using the values available at this point in the program.' };
+}
+
+function getStepExplanation(
+  frame: TraceFrame | null,
+  previousFrame: TraceFrame | null,
+  frames: TraceFrame[],
+  cursor: number,
+  sourceLines: string[],
+): StepExplanation {
+  if (!frame) {
+    return {
+      concept: 'READY',
+      text: 'Run your code to get a plain-language explanation of each step.',
+      changes: [],
+      visits: 0,
+    };
+  }
+
+  if (frame.kind === 'complete') {
+    return {
+      concept: 'DONE',
+      text: 'The program has finished. Review the final variable values and output, or step backward to see how they changed.',
+      changes: [],
+      visits: 0,
+    };
+  }
+
+  const line = sourceLines[frame.line - 1] ?? '';
+  const explanation = explainLine(line);
+  const previousValues = new Map(previousFrame?.variables.map(({ name, value }) => [name, value]));
+  const changes = frame.variables.flatMap(({ name, value }) => {
+    if (!previousFrame) return [];
+    if (!previousValues.has(name)) return [{ name, after: value }];
+    if (previousValues.get(name) === value) return [];
+    return [{ name, before: previousValues.get(name), after: value }];
+  });
+  const visits = frames
+    .slice(0, cursor + 1)
+    .filter((candidate) => candidate.kind === 'line' && candidate.line === frame.line)
+    .length;
+
+  return { ...explanation, changes, visits };
+}
+
 function Home() {
   const [source, setSource] = useState(EXAMPLE_CODE);
   const [runState, setRunState] = useState<RunState>({
@@ -157,6 +252,13 @@ function Home() {
   const currentFrame = runState.cursor >= 0 ? runState.frames[runState.cursor] : null;
   const sourceLines = source.split('\n');
   const currentLineText = currentFrame ? sourceLines[currentFrame.line - 1] ?? '' : '';
+  const stepExplanation = getStepExplanation(
+    currentFrame,
+    runState.cursor > 0 ? runState.frames[runState.cursor - 1] : null,
+    runState.frames,
+    runState.cursor,
+    sourceLines,
+  );
 
   const runCode = useCallback(async () => {
     setIsPlaying(false);
@@ -419,6 +521,38 @@ function Home() {
             <div className="trace-footer">
               <span data-testid="text-trace-locality">{runState.frames.length ? 'Recorded in this session' : 'No execution recorded'}</span>
               <span>sys.settrace</span>
+            </div>
+          </section>
+
+          <section className="panel algorithm-guide" aria-label="Plain-language step explanation">
+            <div className="panel-head">
+              <div className="panel-title"><BookOpen size={15} /> What’s happening?</div>
+              <span className="concept-pill" data-testid="text-step-concept">{stepExplanation.concept}</span>
+            </div>
+            <div className="guide-body" data-testid="text-step-explanation">
+              <p>{stepExplanation.text}</p>
+              {stepExplanation.changes.length > 0 && (
+                <div className="step-changes" data-testid="list-step-changes">
+                  <span className="change-label">Changed since the last snapshot</span>
+                  {stepExplanation.changes.slice(0, 2).map((change) => (
+                    <div className="change-row" key={change.name} data-testid={`change-variable-${change.name}`}>
+                      <code>{change.name}</code>
+                      <span>{change.before ?? 'new'}</span>
+                      <ArrowRight size={12} />
+                      <strong>{change.after}</strong>
+                    </div>
+                  ))}
+                  {stepExplanation.changes.length > 2 && (
+                    <span className="change-more">and {stepExplanation.changes.length - 2} more</span>
+                  )}
+                </div>
+              )}
+              {stepExplanation.visits > 1 && (
+                <div className="repeat-hint" data-testid="text-line-repeat">
+                  This line has been reached {stepExplanation.visits} times so far. Repeated steps are a clue that a loop is working.
+                </div>
+              )}
+              <span className="guide-note">Values update between snapshots, so changes appear after the line that made them.</span>
             </div>
           </section>
 
