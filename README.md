@@ -47,6 +47,7 @@ This is meant for short examples, not as a replacement for a full IDE. Long-runn
 
 ## Project map
 
+
 | Path                                                | What lives there                         |
 | --------------------------------------------------- | ---------------------------------------- |
 | `artifacts/python-visualizer/src/App.tsx`           | Editor, Python trace, and main workspace |
