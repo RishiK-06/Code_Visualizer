@@ -39,16 +39,6 @@ pnpm --filter @workspace/python-visualizer run typecheck
 pnpm --filter @workspace/python-visualizer run build
 ```
 
-## Publish on GitHub Pages
-
-This repository includes a workflow at [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). It builds the visualizer from `artifacts/python-visualizer`, uses the correct base path for either a project site or a `username.github.io` site, and publishes the static files.
-
-1. Push the repository to GitHub. The workflow runs on pushes to `main`; change that branch in the workflow if your default branch has a different name.
-2. In the repository, open **Settings → Pages** and set the source to **GitHub Actions**.
-3. Open the **Actions** tab and wait for **Deploy to GitHub Pages** to finish. GitHub shows the public site address in Settings → Pages.
-
-No deployment secrets are needed. The workflow also writes a `404.html` fallback so the `/guide` page opens directly on Pages.
-
 ## How it works
 
 The interface is React and TypeScript, bundled with Vite. Python runs in the browser through Pyodide. A small `sys.settrace` hook records executed lines, visible local values, and standard output for the timeline.
