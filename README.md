@@ -6,7 +6,8 @@
 </div>
 
 ---
-
+[![pages-build-deployment](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/pages/pages-build-deployment)
+---
 ## Take a closer look
 
 Write or edit a short Python snippet, run it, and move through the trace at your own pace. The active line gets an arrow; changed values get a before-and-after view.
