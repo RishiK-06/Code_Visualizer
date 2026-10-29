@@ -1,45 +1,26 @@
-# [Project name]
+# little by little
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A browser-based Python visualizer for stepping through short programs and
+watching local variables and output change.
 
-## Run & Operate
+## Development
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Start the app: `pnpm --filter @workspace/python-visualizer run dev`
+- Check types: `pnpm --filter @workspace/python-visualizer run typecheck`
+- Build the static site: `pnpm --filter @workspace/python-visualizer run build`
 
-## Stack
+The Vite app is in `artifacts/python-visualizer`. `PORT` and `BASE_PATH` are
+optional; they default to `5173` and `/`.
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+## Runtime
 
-## Where things live
+- Python runs in the browser through Pyodide, loaded from jsDelivr on first run.
+- The trace records executed lines, local values, and standard output.
+- The app has no backend and does not upload the code entered in the editor.
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+## GitHub Pages
 
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+`.github/workflows/deploy-pages.yml` builds and publishes the app on pushes to
+`main`. The repository's Pages source must be set to **GitHub Actions**.
+The workflow sets the correct Vite base path for project and user sites, and
+includes a fallback for direct visits to `/guide`.
