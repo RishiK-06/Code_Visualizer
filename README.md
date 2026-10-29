@@ -5,8 +5,7 @@
   <p>A small browser workbench for watching loops, variables, and printed output as they change.</p>
 </div>
 
----
-[![pages-build-deployment](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/pages/pages-build-deployment)
+[![pages-build-deployment](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/pages/pages-build-deployment) [![Deploy to GitHub Pages](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/RishiK-06/Code_Visualizer/actions/workflows/deploy-pages.yml)
 ---
 ## Take a closer look
 
