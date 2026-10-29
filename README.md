@@ -53,4 +53,3 @@ This is meant for short examples, not as a replacement for a full IDE. Long-runn
 | `artifacts/python-visualizer/src/content/guide.mdx` | In-app walkthrough                       |
 | `artifacts/python-visualizer/src/pages/guide.tsx`   | Guide page layout                        |
 | `artifacts/python-visualizer/src/index.css`         | Light and dark themes, responsive layout |
-| `.github/workflows/deploy-pages.yml`                | GitHub Pages build and deployment        |
